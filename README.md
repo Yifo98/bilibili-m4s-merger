@@ -52,11 +52,15 @@ ffmpeg -version
 
 ### 2. 下载本工具
 
-从 [GitHub Releases](https://github.com/yourusername/bilibili-m4s-merger/releases) 下载最新版本。
+**方式一：直接下载文件**
 
-或克隆仓库：
+访问 [仓库首页](https://github.com/Yifo98/bilibili-m4s-merger)，下载以下两个文件：
+- `合并B站视频.py`
+- `合并B站视频.bat`
+
+**方式二：克隆仓库**
 ```bash
-git clone https://github.com/yourusername/bilibili-m4s-merger.git
+git clone https://github.com/Yifo98/bilibili-m4s-merger.git
 ```
 
 ## 使用方法
