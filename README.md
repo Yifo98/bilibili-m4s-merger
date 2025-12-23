@@ -2,8 +2,6 @@
 
 <div align="center">
 
-![Logo](logo.png)
-
 **一键合并B站下载的M4S视频和音频文件**
 
 [![Python](https://img.shields.io/badge/Python-3.6+-blue.svg)](https://www.python.org/downloads/)
