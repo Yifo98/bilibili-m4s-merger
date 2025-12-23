@@ -106,7 +106,7 @@ python 合并B站视频.py
          已删除: XXXXXXXXXXX_哔哩哔哩_bilibili_2.m4s
          已删除: XXXXXXXXXXX_哔哩哔哩_bilibili_2_2.m4s
 
-[2/3] 合并: 董北：XXXXXXXXXXX_哔哩哔哩_1.mp4
+[2/3] 合并：XXXXXXXXXXX_哔哩哔哩_1.mp4
          视频: XXXXXXXXXXX_哔哩哔哩_bilibili.m4s (4096x2048)
          音频: XXXXXXXXXXX_哔哩哔哩_bilibili.m4s
          [成功] XXXXXXXXXXX_哔哩哔哩_1.mp4
