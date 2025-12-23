@@ -82,37 +82,37 @@ python 合并B站视频.py
 工作目录: I:\B站视频下载
 
 扫描到 6 个m4s文件...
-  [音频] 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili.m4s (12.1MB)
-  [视频] 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2.m4s (102.5MB, 4096x2048)
-  [视频] 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2_2.m4s (109.4MB, 4096x2048)
-  [音频] 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2_3.m4s (6.3MB)
-  [音频] 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_3.m4s (7.3MB)
-  [视频] 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_4.m4s (70.1MB, 4096x2048)
+  [音频] XXXXXXXXXXX_哔哩哔哩_bilibili.m4s (12.1MB)
+  [视频] XXXXXXXXXXX_哔哩哔哩_bilibili_2.m4s (102.5MB, 4096x2048)
+  [视频] XXXXXXXXXXX_哔哩哔哩_bilibili_2_2.m4s (109.4MB, 4096x2048)
+  [音频] XXXXXXXXXXX_哔哩哔哩_bilibili_2_3.m4s (6.3MB)
+  [音频] XXXXXXXXXXX_哔哩哔哩_bilibili_3.m4s (7.3MB)
+  [视频] XXXXXXXXXXX_哔哩哔哩_bilibili_4.m4s (70.1MB, 4096x2048)
 
 [匹配阶段] 正在匹配视频和音频...
 找到 3 组匹配
 
 [合并阶段] 正在合并文件...
-[1/3] 合并: 董北：达芬奇实战剪辑入门课_哔哩哔哩.mp4
-         视频: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2.m4s (4096x2048)
-         音频: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2_2.m4s
-         [成功] 董北：达芬奇实战剪辑入门课_哔哩哔哩.mp4
-         已删除: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2.m4s
-         已删除: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2_2.m4s
+[1/3] 合并: XXXXXXXXXXX_哔哩哔哩.mp4
+         视频: XXXXXXXXXXX_哔哩哔哩_bilibili_2.m4s (4096x2048)
+         音频: XXXXXXXXXXX_哔哩哔哩_bilibili_2_2.m4s
+         [成功] XXXXXXXXXXX_哔哩哔哩.mp4
+         已删除: XXXXXXXXXXX_哔哩哔哩_bilibili_2.m4s
+         已删除: XXXXXXXXXXX_哔哩哔哩_bilibili_2_2.m4s
 
-[2/3] 合并: 董北：达芬奇实战剪辑入门课_哔哩哔哩_1.mp4
-         视频: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili.m4s (4096x2048)
-         音频: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili.m4s
-         [成功] 董北：达芬奇实战剪辑入门课_哔哩哔哩_1.mp4
-         已删除: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili.m4s
-         已删除: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili.m4s
+[2/3] 合并: 董北：XXXXXXXXXXX_哔哩哔哩_1.mp4
+         视频: XXXXXXXXXXX_哔哩哔哩_bilibili.m4s (4096x2048)
+         音频: XXXXXXXXXXX_哔哩哔哩_bilibili.m4s
+         [成功] XXXXXXXXXXX_哔哩哔哩_1.mp4
+         已删除: XXXXXXXXXXX_哔哩哔哩_bilibili.m4s
+         已删除: XXXXXXXXXXX_哔哩哔哩_bilibili.m4s
 
-[3/3] 合并: 董北：达芬奇实战剪辑入门课_哔哩哔哩_2.mp4
-         视频: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_4.m4s (4096x2048)
-         音频: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2_3.m4s
-         [成功] 董北：达芬奇实战剪辑入门课_哔哩哔哩_2.mp4
-         已删除: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_4.m4s
-         已删除: 董北：达芬奇实战剪辑入门课_哔哩哔哩_bilibili_2_3.m4s
+[3/3] 合并: XXXXXXXXXXX_哔哩哔哩_2.mp4
+         视频: XXXXXXXXXXX_哔哩哔哩_bilibili_4.m4s (4096x2048)
+         音频: XXXXXXXXXXX_哔哩哔哩_bilibili_2_3.m4s
+         [成功] XXXXXXXXXXX_哔哩哔哩_2.mp4
+         已删除: XXXXXXXXXXX_哔哩哔哩_bilibili_4.m4s
+         已删除: XXXXXXXXXXX_哔哩哔哩_bilibili_2_3.m4s
 
 ==================================================
 合并完成! 成功: 3/3
