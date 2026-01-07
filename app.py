@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import threading
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
@@ -22,7 +23,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 
-APP_TITLE = "分离音视频合成工具"
+APP_TITLE = "AV Track Merger"
 DEFAULT_EXTENSIONS = [
     "m4s",
     "mp4",
@@ -64,6 +65,16 @@ def resolve_ffmpeg_bins() -> Tuple[str, str]:
 
 FFMPEG_BIN, FFPROBE_BIN = resolve_ffmpeg_bins()
 CONFIG_PATH = Path(__file__).parent / "settings.json"
+WINDOWS_HIDE_FLAGS = 0x08000000 if os.name == "nt" else 0
+
+
+def _hidden_startupinfo():
+    if os.name != "nt":
+        return None
+    info = subprocess.STARTUPINFO()
+    info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    info.wShowWindow = 0
+    return info
 
 
 def _ffmpeg_ready() -> bool:
@@ -92,6 +103,8 @@ def _run_ffprobe(path: Path) -> Optional[dict]:
             timeout=15,
             encoding="utf-8",
             errors="ignore",
+            creationflags=WINDOWS_HIDE_FLAGS,
+            startupinfo=_hidden_startupinfo(),
             check=False,
         )
         if not result.stdout:
@@ -219,7 +232,14 @@ def _match_pairs(videos: List[dict], audios: List[dict], max_diff: float = 5.0) 
 
 def _merge(video_path: Path, audio_path: Path, output_path: Path) -> bool:
     cmd = [FFMPEG_BIN, "-i", str(video_path), "-i", str(audio_path), "-c", "copy", "-y", str(output_path)]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        creationflags=WINDOWS_HIDE_FLAGS,
+        startupinfo=_hidden_startupinfo(),
+    )
     return result.returncode == 0 and output_path.exists()
 
 
@@ -453,15 +473,15 @@ class MergerApp:
             if not matches:
                 return
 
+            timestamp = datetime.now().strftime("%Y_%m_%d_%H.%M")
             success = 0
             deleted = 0
+            seq = 1
             for idx, (video, audio) in enumerate(matches, 1):
-                base_name = video["base"] or Path(video["name"]).stem
-                output_path = output_dir / f"{base_name}.mp4"
-                counter = 1
+                output_path = output_dir / f"{seq}.ATM_{timestamp}.mp4"
                 while output_path.exists():
-                    output_path = output_dir / f"{base_name}_{counter}.mp4"
-                    counter += 1
+                    seq += 1
+                    output_path = output_dir / f"{seq}.ATM_{timestamp}.mp4"
 
                 self._log(f"[{idx}/{len(matches)}] 合并: {output_path.name}")
                 self._log(f"  视频: {video['name']}")
@@ -481,6 +501,7 @@ class MergerApp:
                 else:
                     self._log("  失败")
                 self._log("")
+                seq += 1
 
             self._log("=" * 40)
             self._log(f"完成: {success}/{len(matches)} 成功")
