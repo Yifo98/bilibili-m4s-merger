@@ -40,3 +40,9 @@ Thumbs.db
 *.m4s
 *.mp4
 test/
+
+# Local settings
+settings.json
+
+# Local ffmpeg (not committed)
+ffmpeg/
