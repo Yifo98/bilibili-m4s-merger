@@ -1,0 +1,7 @@
+# AV Track Merger v2.0 依赖
+
+# GUI 框架 - 使用 CustomTkinter（更稳定）
+customtkinter==5.2.1
+packaging>=21.0
+pywin32; platform_system=="Windows"
+pyinstaller==6.17.0; platform_system=="Windows"

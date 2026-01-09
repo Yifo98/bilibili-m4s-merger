@@ -1,0 +1,21 @@
+{
+  "theme": "light",
+  "language": "zh-CN",
+  "window_width": 1200,
+  "window_height": 760,
+  "remember_position": true,
+  "max_duration_diff": 5.0,
+  "match_strategy": "duration",
+  "output_naming": "sequential",
+  "filename_template": "{idx}.ATM_{timestamp}.mp4",
+  "ffmpeg_threads": 0,
+  "copy_codec": true,
+  "delete_sources": false,
+  "remember_dirs": true,
+  "last_input_dir": "",
+  "last_output_dir": "",
+  "parallel_workers": 4,
+  "retry_on_failure": true,
+  "max_retries": 2,
+  "generate_log": true
+}
