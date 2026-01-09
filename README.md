@@ -1,6 +1,6 @@
 ![AV Track Merger](assets/icon.png)
 
-# AV Track Merger v2.0
+# AV Track Merger 
 
 音视频分离文件批量合并工具（CustomTkinter + FFmpeg）。
 
