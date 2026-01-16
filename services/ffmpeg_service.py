@@ -7,8 +7,9 @@ FFmpeg 服务封装
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 
 class FFmpegService:
@@ -122,9 +123,16 @@ class FFmpegService:
 
         width = 0
         height = 0
+        video_codec_name = ""
+        video_pix_fmt = ""
+        video_profile = ""
         if video_streams:
-            width = int(video_streams[0].get("width") or 0)
-            height = int(video_streams[0].get("height") or 0)
+            primary_video = video_streams[0] or {}
+            width = int(primary_video.get("width") or 0)
+            height = int(primary_video.get("height") or 0)
+            video_codec_name = str(primary_video.get("codec_name") or "")
+            video_pix_fmt = str(primary_video.get("pix_fmt") or "")
+            video_profile = str(primary_video.get("profile") or "")
 
         return {
             "duration": duration,
@@ -132,6 +140,9 @@ class FFmpegService:
             "has_audio": bool(audio_streams),
             "width": width,
             "height": height,
+            "video_codec_name": video_codec_name,
+            "video_pix_fmt": video_pix_fmt,
+            "video_profile": video_profile,
         }
 
     def merge_media(
@@ -139,7 +150,9 @@ class FFmpegService:
         video_path: Path,
         audio_path: Path,
         output_path: Path,
-        copy_codec: bool = True
+        copy_codec: bool = True,
+        resolve_safe_mode: bool = True,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
     ) -> bool:
         """
         合并音视频文件
@@ -161,28 +174,105 @@ class FFmpegService:
             "-i", str(audio_path),
         ]
 
-        if copy_codec:
-            cmd.extend(["-c", "copy"])
+        if resolve_safe_mode:
+            # Resolve safe mode to avoid DaVinci Resolve import crash.
+            info = self.analyze_file(video_path) or {}
+            codec_name = str(info.get("video_codec_name") or "").lower()
+            pix_fmt = str(info.get("video_pix_fmt") or "").lower()
+            _profile = str(info.get("video_profile") or "").lower()
 
+            cmd.extend(["-map", "0:v:0", "-map", "1:a:0", "-shortest"])
+
+            if not self._needs_resolve_transcode(codec_name, pix_fmt):
+                cmd.extend(["-c:v", "copy"])
+            else:
+                cmd.extend([
+                    "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p",
+                    "-profile:v", "high",
+                    "-level", "4.1"
+                ])
+
+            cmd.extend([
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-movflags", "+faststart"
+            ])
+        else:
+            if copy_codec:
+                cmd.extend(["-c", "copy"])
+
+        cmd.extend(["-progress", "pipe:1", "-nostats"])
         cmd.extend(["-y", str(output_path)])
 
+        timeout = 300
+        start_time = time.monotonic()
+
         try:
-            result = subprocess.run(
+            process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=300,  # 5 分钟超时
+                stderr=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
 
-            return result.returncode == 0 and output_path.exists()
+            progress_data: Dict[str, Any] = {}
+            if process.stdout:
+                for line in process.stdout:
+                    if time.monotonic() - start_time > timeout:
+                        process.kill()
+                        print(f"合并超时: {video_path.name} + {audio_path.name}")
+                        return False
 
-        except subprocess.TimeoutExpired:
-            print(f"合并超时: {video_path.name} + {audio_path.name}")
-            return False
+                    line = line.strip()
+                    if not line or "=" not in line:
+                        continue
+                    key, value = line.split("=", 1)
+                    progress_data[key] = value
+                    if key == "progress":
+                        if progress_callback:
+                            progress_callback(dict(progress_data))
+                        progress_data = {}
+
+            remaining = max(1, int(timeout - (time.monotonic() - start_time)))
+            try:
+                process.wait(timeout=remaining)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                print(f"合并超时: {video_path.name} + {audio_path.name}")
+                return False
+
+            return process.returncode == 0 and output_path.exists()
+
         except Exception as e:
             print(f"合并失败: {e}")
             return False
+
+    @staticmethod
+    def _needs_resolve_transcode(codec_name: str, pix_fmt: str) -> bool:
+        codec = (codec_name or "").lower()
+        pix = (pix_fmt or "").lower()
+
+        if not codec and not pix:
+            return True
+
+        if codec == "av1":
+            return True
+
+        is_hevc = codec in ("hevc", "h265", "h.265")
+        is_10bit = "10" in pix
+        if is_hevc and is_10bit:
+            return True
+
+        if pix.startswith("yuv422") or pix.startswith("yuv444"):
+            return True
+
+        if codec == "h264" and pix == "yuv420p":
+            return False
+
+        return True
 
     def get_version(self) -> Optional[str]:
         """获取 FFmpeg 版本"""

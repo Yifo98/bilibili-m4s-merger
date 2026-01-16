@@ -63,6 +63,13 @@ build_exe.bat
 3) 输出文件
 - `X:\XXX\dist\AV Track Merger.exe`
 
+### 发布说明（Release 准备）
+
+- 打包脚本：`build_exe.bat`（已移除 PyInstaller `--splash`）
+- 启动画面：程序内置自定义启动窗（可拖动），图片来自 `assets/splash.png`
+- 依赖：`requirements.txt` + 项目根目录的 `ffmpeg` 文件夹
+- 发布产物：`dist/AV Track Merger.exe`
+
 ---
 
 ## 使用步骤

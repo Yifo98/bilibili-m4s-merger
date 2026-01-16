@@ -35,6 +35,7 @@ if not exist "settings.json" (
     echo   "filename_template": "{idx}.ATM_{timestamp}.mp4",
     echo   "ffmpeg_threads": 0,
     echo   "copy_codec": true,
+    echo   "resolve_safe_mode": true,
     echo   "delete_sources": false,
     echo   "remember_dirs": true,
     echo   "last_input_dir": "",
@@ -55,7 +56,6 @@ echo Building EXE...
   --onefile ^
   --name "AV Track Merger" ^
   --icon "assets\icon.ico" ^
-  --splash "assets\splash.png" ^
   --hidden-import "gui.main_window" ^
   --hidden-import "gui" ^
   --collect-submodules "gui" ^

@@ -12,6 +12,7 @@ import customtkinter as ctk
 from pathlib import Path
 from typing import Optional
 import threading
+import time
 
 from core import Merger, FileScanner
 from services import FFmpegService, ConfigManager
@@ -21,33 +22,131 @@ class MainWindow(ctk.CTk):
     """主窗口 - 柔和米灰主题"""
 
     def _update_splash(self, text: str, progress: int):
-        """更新启动画面（仅在打包后生效）"""
+        """Update splash screen (packaged builds only)."""
+        if getattr(self, "_splash_window", None):
+            try:
+                if self._splash_label:
+                    self._splash_label.configure(text=text)
+                if self._splash_progress:
+                    if hasattr(self._splash_progress, "set"):
+                        self._splash_progress.set(max(0.0, min(1.0, progress / 100.0)))
+                    else:
+                        self._splash_progress["value"] = max(0, min(100, int(progress)))
+                self._splash_window.update_idletasks()
+            except Exception:
+                pass
         try:
             import pyi_splash  # type: ignore
-            pyi_splash.update_text("正在启动，请稍候...")
+            pyi_splash.update_text("\u6b63\u5728\u542f\u52a8\uff0c\u8bf7\u7a0d\u5019...")
             pyi_splash.update_progress(progress)
         except Exception:
             pass
 
     def _close_splash(self):
-        """关闭启动画面（仅在打包后生效）"""
+        """Close splash screen (packaged builds only)."""
         try:
             import pyi_splash  # type: ignore
             pyi_splash.close()
+        except Exception:
+            pass
+        if getattr(self, "_splash_window", None):
+            try:
+                self._splash_window.destroy()
+            except Exception:
+                pass
+            self._splash_window = None
+            self._splash_label = None
+            self._splash_progress = None
+        if self.state() == "withdrawn":
+            self._show_main_window()
+
+    def _create_custom_splash(self):
+        if getattr(self, "_splash_window", None):
+            return
+
+        bg = "#F2ECE3"
+        muted = "#6F6257"
+
+        splash = ctk.CTkToplevel(self)
+        splash.title("\u542f\u52a8\u4e2d")
+        splash.resizable(False, False)
+        splash.configure(fg_color=bg)
+        splash.geometry("420x260")
+        splash.attributes("-topmost", False)
+
+        container = ctk.CTkFrame(splash, fg_color=bg, corner_radius=0)
+        container.pack(fill="both", expand=True)
+
+        img_path = self._resource_path(os.path.join("assets", "splash.png"))
+        self._splash_image = None
+        if os.path.exists(img_path):
+            try:
+                self._splash_image = tk.PhotoImage(file=img_path)
+                img_label = ctk.CTkLabel(container, image=self._splash_image, text="")
+                img_label.pack(padx=8, pady=(8, 0))
+            except Exception:
+                pass
+
+        self._splash_label = ctk.CTkLabel(
+            container,
+            text="\u6b63\u5728\u542f\u52a8\uff0c\u8bf7\u7a0d\u5019...",
+            text_color=muted,
+            font=ctk.CTkFont(size=12)
+        )
+        self._splash_label.pack(pady=(6, 4))
+
+        self._splash_progress = ctk.CTkProgressBar(
+            container,
+            height=8,
+            fg_color="#E8DFD3",
+            progress_color="#3E5868"
+        )
+        self._splash_progress.pack(fill="x", padx=12, pady=(0, 12))
+        self._splash_progress.set(0)
+
+        def start_move(event):
+            splash._drag_x = event.x
+            splash._drag_y = event.y
+
+        def on_move(event):
+            x = splash.winfo_x() + event.x - getattr(splash, "_drag_x", 0)
+            y = splash.winfo_y() + event.y - getattr(splash, "_drag_y", 0)
+            splash.geometry(f"+{x}+{y}")
+
+        splash.bind("<ButtonPress-1>", start_move)
+        splash.bind("<B1-Motion>", on_move)
+
+        splash.update_idletasks()
+        width = max(360, splash.winfo_reqwidth())
+        height = max(200, splash.winfo_reqheight())
+        x = (splash.winfo_screenwidth() - width) // 2
+        y = (splash.winfo_screenheight() - height) // 2
+        splash.geometry(f"{width}x{height}+{x}+{y}")
+        splash.update()
+
+        self._splash_window = splash
+
+    def _show_main_window(self):
+        try:
+            self.deiconify()
+            self.lift()
+            self.focus_force()
         except Exception:
             pass
 
     def __init__(self):
         super().__init__()
 
-        self._update_splash("启动初始化", 5)
+        self._create_custom_splash()
+
+        self._update_splash("\u542f\u52a8\u521d\u59cb\u5316", 5)
 
         # 初始化服务
         self.config = ConfigManager()
         try:
-            self._update_splash("检测 FFmpeg", 20)
+            self._update_splash("\u68c0\u6d4b FFmpeg", 20)
             self.ffmpeg = FFmpegService()
-            self._update_splash("初始化合并引擎", 35)
+            self._update_splash("\u521d\u59cb\u5316\u5408\u5e76\u5f15\u64ce", 35)
             self.merger = Merger(self.ffmpeg, self._on_progress)
         except RuntimeError as e:
             self._close_splash()
@@ -58,15 +157,19 @@ class MainWindow(ctk.CTk):
         self.current_task = None
         self.worker = None
         self.selected_formats = {"m4s", "mp4", "m4a", "aac"}
+        self._last_progress_log = 0.0
+        self._merge_start_time = 0.0
 
         # 设置主题
-        self._update_splash("加载主题", 50)
+        self._update_splash("\u52a0\u8f7d\u4e3b\u9898", 50)
         self._setup_theme()
-        self._update_splash("构建界面", 70)
+        self._show_main_window()
+        self._update_splash("\u6784\u5efa\u754c\u9762", 70)
         self._build_ui()
-        self._update_splash("加载配置", 85)
+        self._update_splash("\u52a0\u8f7d\u914d\u7f6e", 85)
         self._load_settings()
-        self._update_splash("准备完成", 100)
+        self._update_splash("\u51c6\u5907\u5b8c\u6210", 100)
+        self._show_main_window()
         self._close_splash()
 
     def _setup_theme(self):
@@ -492,8 +595,6 @@ class MainWindow(ctk.CTk):
         )
         self.start_btn.pack(anchor="e", pady=(0, 6))
 
-        self.status_label = None
-
     def _toggle_custom_input(self):
         """切换自定义输入框显示（已禁用）"""
         pass
@@ -538,6 +639,25 @@ class MainWindow(ctk.CTk):
             font=ctk.CTkFont(size=15, weight="bold"),
             text_color=self.colors["text"]
         ).pack(anchor="w", padx=16, pady=(12, 4))
+
+        progress_row = ctk.CTkFrame(log_body, fg_color="transparent")
+        progress_row.pack(fill="x", padx=16, pady=(0, 6))
+
+        self.status_label = ctk.CTkLabel(
+            progress_row,
+            text="就绪",
+            font=ctk.CTkFont(size=12),
+            text_color=self.colors["muted"]
+        )
+        self.status_label.pack(anchor="w")
+
+        self.progress_bar = ctk.CTkProgressBar(
+            progress_row,
+            fg_color=self.colors["panel_2"],
+            progress_color=self.colors["accent_2"]
+        )
+        self.progress_bar.pack(fill="x", pady=(4, 0))
+        self.progress_bar.set(0)
 
         self.log_text = ctk.CTkTextbox(
             log_body,
@@ -635,8 +755,8 @@ class MainWindow(ctk.CTk):
             background=self.colors["panel"],
             fieldbackground=self.colors["panel"],
             foreground=self.colors["text"],
-            font=("Microsoft YaHei UI", 14),
-            rowheight=32
+            font=("Microsoft YaHei UI", 12),
+            rowheight=26
         )
         style.map("Treeview", background=[("selected", self.colors["panel_2"])])
 
@@ -993,6 +1113,12 @@ class MainWindow(ctk.CTk):
         self.start_btn.configure(state="disabled", text="扫描中...")
         if hasattr(self, "status_label") and self.status_label:
             self.status_label.configure(text="正在扫描文件...")
+        if hasattr(self, "progress_bar") and self.progress_bar:
+            try:
+                self.progress_bar.configure(mode="determinate")
+            except Exception:
+                pass
+            self.progress_bar.set(0)
 
         # 在后台线程中准备和执行任务
         self.worker = threading.Thread(
@@ -1021,6 +1147,7 @@ class MainWindow(ctk.CTk):
                 custom_template=custom_template,
                 parallel_workers=self.config.get("parallel_workers", 1),
                 copy_codec=self.config.get("copy_codec", True),
+                resolve_safe_mode=self.config.get("resolve_safe_mode", True),
                 retry_on_failure=self.config.get("retry_on_failure", True),
                 max_retries=self.config.get("max_retries", 2)
             )
@@ -1037,6 +1164,13 @@ class MainWindow(ctk.CTk):
 
             self.after(0, lambda: self._log("="*60 + "\n"))
             self.after(0, lambda: self.status_label.configure(text="开始合并..."))
+            self.after(0, lambda: self.start_btn.configure(text="合并中..."))
+            if hasattr(self, "progress_bar") and self.progress_bar:
+                try:
+                    self.progress_bar.configure(mode="indeterminate")
+                    self.progress_bar.start()
+                except Exception:
+                    pass
 
             # 执行合并
             result_task = self.merger.execute_task(self.current_task)
@@ -1045,12 +1179,74 @@ class MainWindow(ctk.CTk):
         except Exception as e:
             self.after(0, lambda: self._on_error(str(e)))
 
+    def _format_time_ms(self, ms: int) -> str:
+        if not ms or ms <= 0:
+            return ""
+        seconds = ms / 1000.0
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{secs:05.2f}"
+        return f"{minutes:02d}:{secs:05.2f}"
+
     def _on_progress(self, current: int, total: int, result):
-        """进度回调"""
-        progress = current / total
+        """Progress callback"""
+        label_merging = "\u5408\u5e76\u4e2d"
+        label_speed = "\u901f\u5ea6"
+        label_progress = "\u8fdb\u5ea6"
+        label_overall_duration = "\u5a92\u4f53\u65f6\u957f"
+        label_elapsed = "\u5b9e\u8017"
+        log_interval = 3.0
+
+        if isinstance(result, dict):
+            phase = result.get("phase")
+            speed = result.get("speed")
+            status = result.get("progress")
+            overall_out_time_ms = result.get("overall_out_time_ms")
+            overall_total_ms = result.get("overall_total_ms")
+
+            if phase == "start":
+                if hasattr(self, "status_label") and self.status_label:
+                    text = f"{label_merging} {current}/{total}"
+                    overall_time_str = self._format_time_ms(int(overall_out_time_ms or 0))
+                    overall_total_str = self._format_time_ms(int(overall_total_ms or 0))
+                    if overall_time_str and overall_total_str:
+                        text += f" {label_overall_duration} {overall_time_str}/{overall_total_str}"
+                    self.after(0, lambda t=text: self.status_label.configure(text=t))
+                return
+
+            overall_time_str = self._format_time_ms(int(overall_out_time_ms or 0))
+            overall_total_str = self._format_time_ms(int(overall_total_ms or 0))
+            if hasattr(self, "status_label") and self.status_label:
+                text = f"{label_merging} {current}/{total}"
+                if overall_time_str and overall_total_str:
+                    text += f" {label_overall_duration} {overall_time_str}/{overall_total_str}"
+                if speed:
+                    text += f" {label_speed} {speed}"
+                if self._merge_start_time:
+                    elapsed = time.time() - self._merge_start_time
+                    text += f" {label_elapsed} {self._format_time_ms(int(elapsed * 1000))}"
+                self.after(0, lambda t=text: self.status_label.configure(text=t))
+
+            now = time.time()
+            if now - self._last_progress_log >= log_interval or status == "end":
+                log_parts = [f"{label_progress} {current}/{total}"]
+                if overall_time_str and overall_total_str:
+                    log_parts.append(f"{label_overall_duration} {overall_time_str}/{overall_total_str}")
+                if speed:
+                    log_parts.append(f"{label_speed} {speed}")
+                if self._merge_start_time:
+                    elapsed = time.time() - self._merge_start_time
+                    log_parts.append(f"{label_elapsed} {self._format_time_ms(int(elapsed * 1000))}")
+                log_msg = " ".join(log_parts)
+                self.after(0, lambda m=log_msg: self._log(m))
+                self._last_progress_log = now
+            return
+
         if hasattr(self, "status_label") and self.status_label:
             self.after(0, lambda: self.status_label.configure(
-                text=f"合并中: {current}/{total} ({int(progress*100)}%)"
+                text=f"{label_merging} {current}/{total}"
             ))
 
         if result.success:
@@ -1058,11 +1254,19 @@ class MainWindow(ctk.CTk):
         else:
             self.after(0, lambda: self._log(f"[{current}/{total}] {result.error}"))
 
+
     def _on_completed(self, task):
         """完成回调"""
         self.start_btn.configure(state="normal", text="开始合并")
         if hasattr(self, "status_label") and self.status_label:
             self.status_label.configure(text=f"完成: {task.success_count}/{task.total_count}")
+        if hasattr(self, "progress_bar") and self.progress_bar:
+            try:
+                self.progress_bar.stop()
+                self.progress_bar.configure(mode="determinate")
+            except Exception:
+                pass
+            self.progress_bar.set(1)
 
         success = task.success_count
         failed = task.failed_count
@@ -1090,6 +1294,13 @@ class MainWindow(ctk.CTk):
         self.start_btn.configure(state="normal", text="开始合并")
         if hasattr(self, "status_label") and self.status_label:
             self.status_label.configure(text="发生错误")
+        if hasattr(self, "progress_bar") and self.progress_bar:
+            try:
+                self.progress_bar.stop()
+                self.progress_bar.configure(mode="determinate")
+            except Exception:
+                pass
+            self.progress_bar.set(0)
         self._log(f"错误: {error}")
         self._log(f"{'='*60}\n")
         messagebox.showerror("错误", error)

@@ -100,6 +100,7 @@ class MergeTask:
     naming_format: str = "default"  # 命名格式: default/original/custom
     custom_template: Optional[str] = None  # 自定义命名模板
     copy_codec: bool = True
+    resolve_safe_mode: bool = True
     total_count: int = 0
     success_count: int = 0
     failed_count: int = 0

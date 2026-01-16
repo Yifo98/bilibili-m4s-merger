@@ -29,6 +29,7 @@ class AppConfig:
     # FFmpeg 设置
     ffmpeg_threads: int = 0  # 0 = auto
     copy_codec: bool = True
+    resolve_safe_mode: bool = True
 
     # 行为设置
     delete_sources: bool = False

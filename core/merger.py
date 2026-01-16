@@ -8,7 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Dict, Any
 from .models import MediaFile, FilePair, MergeResult, MergeTask
 from .file_scanner import FileScanner
 from .smart_matcher import SmartMatcher
@@ -80,6 +80,7 @@ class Merger:
         custom_template: Optional[str] = None,
         parallel_workers: int = 1,
         copy_codec: bool = True,
+        resolve_safe_mode: bool = True,
         retry_on_failure: bool = True,
         max_retries: int = 2
     ) -> Optional[MergeTask]:
@@ -134,6 +135,7 @@ class Merger:
             naming_format=naming_format,
             custom_template=custom_template,
             copy_codec=copy_codec,
+            resolve_safe_mode=resolve_safe_mode,
             max_retries=effective_retries
         )
 
@@ -155,6 +157,20 @@ class Merger:
         timestamp_str = timestamp.strftime("%Y_%m_%d_%H.%M")
         seq = 1
 
+        pair_durations_ms = []
+        for pair in task.pairs:
+            duration = 0
+            if pair.video.duration and pair.audio.duration:
+                duration = min(pair.video.duration, pair.audio.duration)
+            elif pair.video.duration:
+                duration = pair.video.duration
+            elif pair.audio.duration:
+                duration = pair.audio.duration
+            pair_durations_ms.append(int(duration * 1000))
+
+        total_duration_ms = sum(pair_durations_ms)
+        completed_ms = 0
+
         for idx, pair in enumerate(task.pairs, 1):
             # 生成输出文件名（根据命名格式）
             output_name = self._generate_output_name(
@@ -166,20 +182,103 @@ class Merger:
             )
             output_path = self._ensure_unique_output_path(task.output_dir / output_name)
 
-            # 执行合并
-            result = self._merge_pair(pair, output_path, copy_codec=task.copy_codec)
+            current_target_ms = pair_durations_ms[idx - 1] if idx - 1 < len(pair_durations_ms) else 0
+
+            if self.progress_callback:
+                start_info = {"phase": "start"}
+                if total_duration_ms > 0:
+                    start_info["overall_percent"] = min(100.0, (completed_ms / total_duration_ms) * 100)
+                    start_info["overall_out_time_ms"] = completed_ms
+                    start_info["overall_total_ms"] = total_duration_ms
+                self.progress_callback(idx, len(task.pairs), start_info)
+
+            def on_progress(info):
+                if not info:
+                    return
+
+                duration = 0
+                if pair.video.duration and pair.audio.duration:
+                    duration = min(pair.video.duration, pair.audio.duration)
+                elif pair.video.duration:
+                    duration = pair.video.duration
+                elif pair.audio.duration:
+                    duration = pair.audio.duration
+
+                out_time_ms = 0
+                out_time_str = info.get("out_time")
+                if out_time_str:
+                    try:
+                        parts = str(out_time_str).split(":")
+                        if len(parts) == 3:
+                            hours = float(parts[0])
+                            minutes = float(parts[1])
+                            seconds = float(parts[2])
+                            out_time_ms = int((hours * 3600 + minutes * 60 + seconds) * 1000)
+                    except (TypeError, ValueError):
+                        out_time_ms = 0
+
+                if out_time_ms <= 0:
+                    try:
+                        raw_out_time_ms = int(info.get("out_time_ms") or 0)
+                    except (TypeError, ValueError):
+                        raw_out_time_ms = 0
+
+                    if raw_out_time_ms <= 0:
+                        try:
+                            raw_out_time_ms = int(info.get("out_time_us") or 0)
+                        except (TypeError, ValueError):
+                            raw_out_time_ms = 0
+
+                    out_time_ms = raw_out_time_ms
+                    if duration > 0 and raw_out_time_ms > duration * 10000:
+                        out_time_ms = int(raw_out_time_ms / 1000)
+
+                if duration > 0 and out_time_ms > duration * 1500:
+                    return
+
+                if duration > 0 and out_time_ms > 0:
+                    info["percent"] = min(100.0, (out_time_ms / (duration * 1000)) * 100)
+                if out_time_ms:
+                    info["out_time_ms"] = out_time_ms
+
+                if total_duration_ms > 0 and out_time_ms > 0:
+                    overall_done_ms = completed_ms + out_time_ms
+                    info["overall_out_time_ms"] = overall_done_ms
+                    info["overall_total_ms"] = total_duration_ms
+                    info["overall_percent"] = min(100.0, (overall_done_ms / total_duration_ms) * 100)
+
+                if self.progress_callback:
+                    self.progress_callback(idx, len(task.pairs), info)
+
+            # ????
+            result = self._merge_pair(
+                pair,
+                output_path,
+                copy_codec=task.copy_codec,
+                resolve_safe_mode=task.resolve_safe_mode,
+                progress_callback=on_progress
+            )
             result.retry_count = 0
 
             # 重试逻辑
             if not result.success and task.max_retries > 0:
                 for attempt in range(task.max_retries):
-                    result = self._merge_pair(pair, output_path, copy_codec=task.copy_codec)
+                    result = self._merge_pair(
+                        pair,
+                        output_path,
+                        copy_codec=task.copy_codec,
+                        resolve_safe_mode=task.resolve_safe_mode,
+                        progress_callback=on_progress
+                    )
                     result.retry_count = attempt + 1
                     if result.success:
                         break
 
             result.end_time = datetime.now()
             task.add_result(result)
+
+            if total_duration_ms > 0:
+                completed_ms += current_target_ms
 
             # 删除源文件
             if result.success and task.delete_sources:
@@ -242,7 +341,14 @@ class Merger:
 
         return name
 
-    def _merge_pair(self, pair: FilePair, output_path: Path, copy_codec: bool = True) -> MergeResult:
+    def _merge_pair(
+        self,
+        pair: FilePair,
+        output_path: Path,
+        copy_codec: bool = True,
+        resolve_safe_mode: bool = True,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
+    ) -> MergeResult:
         """合并单个文件对"""
         result = MergeResult(
             success=False,
@@ -257,7 +363,9 @@ class Merger:
                 pair.video.path,
                 pair.audio.path,
                 output_path,
-                copy_codec=copy_codec
+                copy_codec=copy_codec,
+                resolve_safe_mode=resolve_safe_mode,
+                progress_callback=progress_callback
             )
             result.success = success
 
